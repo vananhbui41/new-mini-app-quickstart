@@ -1,26 +1,78 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useQuickAuth,useMiniKit } from "@coinbase/onchainkit/minikit";
-import { useRouter } from "next/navigation";
-import { minikitConfig } from "../minikit.config";
+import { useMiniKit } from "@coinbase/onchainkit/minikit";
 import styles from "./page.module.css";
 
-interface AuthResponse {
-  success: boolean;
-  user?: {
-    fid: number; // FID is the unique identifier for the user
-    issuedAt?: number;
-    expiresAt?: number;
-  };
-  message?: string; // Error messages come as 'message' not 'error'
+interface Mood {
+  name: string;
+  icon: string;
+  color: string;
 }
 
+interface Quote {
+  text: string;
+  mood: string;
+}
+
+const moods: Mood[] = [
+  { name: "Happy", icon: "😊", color: "#FFD700" },
+  { name: "Sad", icon: "😢", color: "#4169E1" },
+  { name: "Angry", icon: "😠", color: "#FF4500" },
+  { name: "Neutral", icon: "😐", color: "#808080" },
+  { name: "Excited", icon: "🤩", color: "#FF1493" },
+  { name: "Calm", icon: "😌", color: "#90EE90" },
+];
+
+const quotes: Record<string, string[]> = {
+  Happy: [
+    "The best time to plant a tree was 20 years ago. The second best time is now.",
+    "Happiness is not by chance, but by choice.",
+    "Life is 10% what happens to you and 90% how you react to it.",
+    "Keep smiling, because life is a beautiful thing and there's so much to smile about.",
+    "Be yourself; everyone else is already taken.",
+  ],
+  Sad: [
+    "The wound is the place where the Light enters you.",
+    "Sadness is just love with no place to go.",
+    "Everything you want is on the other side of fear.",
+    "You are stronger than you believe, braver than you seem, and smarter than you think.",
+    "This too shall pass.",
+  ],
+  Angry: [
+    "Anger is just sad's bodyguard.",
+    "The greatest glory in living lies not in never falling, but in rising every time we fall.",
+    "You cannot control the wind, but you can adjust your sails.",
+    "Peace comes from within. Do not seek it without.",
+    "The obstacle is the way.",
+  ],
+  Neutral: [
+    "In the middle of difficulty lies opportunity.",
+    "Everything has beauty, but not everyone can see.",
+    "The only way to do great work is to love what you do.",
+    "Quality is not an act, it is a habit.",
+    "Success is a journey, not a destination.",
+  ],
+  Excited: [
+    "The future belongs to those who believe in the beauty of their dreams.",
+    "Don't watch the clock; do what it does. Keep going.",
+    "The way to get started is to quit talking and begin doing.",
+    "Believe you can and you're halfway there.",
+    "Your time is limited, don't waste it living someone else's life.",
+  ],
+  Calm: [
+    "Peace is a journey of a thousand miles and it must be taken one step at a time.",
+    "Breathe. You are exactly where you need to be.",
+    "In a gentle way, you can shake the world.",
+    "The present moment is the only moment available to us.",
+    "Let it go and be at peace.",
+  ],
+};
 
 export default function Home() {
-  const { isFrameReady, setFrameReady, context } = useMiniKit();
-  const [email, setEmail] = useState("");
-  const [error, setError] = useState("");
-  const router = useRouter();
+  const { isFrameReady, setFrameReady } = useMiniKit();
+  const [selectedMood, setSelectedMood] = useState<string | null>(null);
+  const [quote, setQuote] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Initialize the  miniapp
   useEffect(() => {
@@ -28,92 +80,67 @@ export default function Home() {
       setFrameReady();
     }
   }, [setFrameReady, isFrameReady]);
- 
-  
 
-  // If you need to verify the user's identity, you can use the useQuickAuth hook.
-  // This hook will verify the user's signature and return the user's FID. You can update
-  // this to meet your needs. See the /app/api/auth/route.ts file for more details.
-  // Note: If you don't need to verify the user's identity, you can get their FID and other user data
-  // via `context.user.fid`.
-  // const { data, isLoading, error } = useQuickAuth<{
-  //   userFid: string;
-  // }>("/api/auth");
+  const handleMoodClick = async (moodName: string) => {
+    setSelectedMood(moodName);
+    setIsLoading(true);
 
-  const { data: authData, isLoading: isAuthLoading, error: authError } = useQuickAuth<AuthResponse>(
-    "/api/auth",
-    { method: "GET" }
-  );
+    // Simulate a small delay for better UX
+    await new Promise((resolve) => setTimeout(resolve, 300));
 
-  const validateEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+    const moodQuotes = quotes[moodName];
+    const randomQuote = moodQuotes[Math.floor(Math.random() * moodQuotes.length)];
+    setQuote(randomQuote);
+    setIsLoading(false);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-
-    // Check authentication first
-    if (isAuthLoading) {
-      setError("Please wait while we verify your identity...");
-      return;
-    }
-
-    if (authError || !authData?.success) {
-      setError("Please authenticate to join the waitlist");
-      return;
-    }
-
-    if (!email) {
-      setError("Please enter your email address");
-      return;
-    }
-
-    if (!validateEmail(email)) {
-      setError("Please enter a valid email address");
-      return;
-    }
-
-    // TODO: Save email to database/API with user FID
-    console.log("Valid email submitted:", email);
-    console.log("User authenticated:", authData.user);
-    
-    // Navigate to success page
-    router.push("/success");
+  const handleChooseAgain = () => {
+    setQuote(null);
+    setSelectedMood(null);
   };
 
   return (
     <div className={styles.container}>
-      <button className={styles.closeButton} type="button">
-        ✕
-      </button>
-      
       <div className={styles.content}>
-        <div className={styles.waitlistForm}>
-          <h1 className={styles.title}>Join {minikitConfig.miniapp.name.toUpperCase()}</h1>
-          
-          <p className={styles.subtitle}>
-             Hey {context?.user?.displayName || "there"}, Get early access and be the first to experience the future of<br />
-            crypto marketing strategy.
-          </p>
-
-          <form onSubmit={handleSubmit} className={styles.form}>
-            <input
-              type="email"
-              placeholder="Your amazing email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className={styles.emailInput}
-            />
-            
-            {error && <p className={styles.error}>{error}</p>}
-            
-            <button type="submit" className={styles.joinButton}>
-              JOIN WAITLIST
-            </button>
-          </form>
-        </div>
+        {!selectedMood ? (
+          <>
+            <h1 className={styles.questionTitle}>How do you feel today?</h1>
+            <div className={styles.moodsGrid}>
+              {moods.map((mood) => (
+                <button
+                  key={mood.name}
+                  className={styles.moodButton}
+                  onClick={() => handleMoodClick(mood.name)}
+                  style={
+                    {
+                      "--mood-color": mood.color,
+                    } as React.CSSProperties
+                  }
+                >
+                  <span className={styles.moodIcon}>{mood.icon}</span>
+                  <span className={styles.moodLabel}>{mood.name}</span>
+                </button>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className={`${styles.quoteContainer} ${quote ? styles.quoteVisible : ""}`}>
+            {isLoading ? (
+              <div className={styles.loader}></div>
+            ) : (
+              <>
+                <div className={styles.quoteContent}>
+                  <span className={styles.quoteIcon}>✨</span>
+                  <p className={styles.quoteText}>{quote}</p>
+                  <span className={styles.quoteIcon}>✨</span>
+                </div>
+                <button className={styles.chooseAgainButton} onClick={handleChooseAgain}>
+                  Choose Again
+                </button>
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
